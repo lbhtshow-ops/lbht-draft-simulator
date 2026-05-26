@@ -444,3 +444,30 @@ button.secondary {
   content-visibility: auto;
   contain-intrinsic-size: 80px;
 }
+.modal-card,
+.profile-card {
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: #e50914;
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  margin: 0;
+}
+
+.prospect,
+.pick,
+.result {
+  content-visibility: auto;
+  contain-intrinsic-size: 80px;
+}
