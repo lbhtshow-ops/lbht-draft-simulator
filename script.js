@@ -445,15 +445,21 @@ function render(){
 
         <h2 style="margin-top:16px;">Draft Order</h2>
         <div class="list">
-          ${state.order.map((abbr, i) => {
-            const made = state.completed.find(p => p.pick === i + 1);
-            return `
-              <div class="pick ${i === state.current ? "active-pick" : ""}">
-                <strong>${i + 1}. ${abbr}</strong>
-                <div class="small">${made ? `${made.player.name} - ${made.player.pos}` : `Round ${Math.floor(i / 32) + 1}`}</div>
-              </div>
-            `;
-          }).join("")}
+          ${state.order
+  .map((abbr, i) => ({ abbr, i }))
+  .slice(
+    Math.max(0, state.current - 10),
+    Math.min(state.order.length, state.current + 25)
+  )
+  .map(({ abbr, i }) => {
+    const made = state.completed.find(p => p.pick === i + 1);
+    return `
+      <div class="pick ${i === state.current ? "active-pick" : ""}">
+        <strong>${i + 1}. ${abbr}</strong>
+        <div class="small">${made ? `${made.player.name} - ${made.player.pos}` : `Round ${Math.floor(i / 32) + 1}`}</div>
+      </div>
+    `;
+  }).join("")}
         </div>
       </aside>
 
