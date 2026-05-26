@@ -1,1 +1,298 @@
+body {
+  margin: 0;
+  background: #050505;
+  color: white;
+  font-family: Arial, Helvetica, sans-serif;
+}
 
+#app {
+  max-width: 1250px;
+  margin: 20px auto;
+  background: radial-gradient(circle at top, #2a0004, #080808 45%);
+  border: 3px solid #e50914;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.header {
+  padding: 22px;
+  background: linear-gradient(90deg, #e50914, #7a0007, #111);
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.header h1 {
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.header p {
+  margin: 6px 0 0;
+  font-weight: bold;
+}
+
+.pill {
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.25);
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.layout {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 300px 1fr 320px;
+  gap: 16px;
+}
+
+.panel {
+  background: rgba(21,21,21,.95);
+  border: 1px solid #333;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+  text-transform: uppercase;
+  border-bottom: 2px solid #e50914;
+  padding-bottom: 8px;
+}
+
+label {
+  display: block;
+  color: #bbb;
+  font-size: 12px;
+  font-weight: 900;
+  margin: 10px 0 5px;
+  text-transform: uppercase;
+}
+
+select, input {
+  width: 100%;
+  background: #0d0d0d;
+  color: white;
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 10px;
+  font-weight: 800;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 900;
+  cursor: pointer;
+  background: #e50914;
+  color: white;
+  margin-top: 8px;
+}
+
+button:hover {
+  background: #ff2a35;
+}
+
+button.secondary {
+  background: #333;
+}
+
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.team-card, .clock, .pick, .result, .trade-log {
+  background: #101010;
+  border: 1px solid #303030;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.team-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.small {
+  color: #bbb;
+  font-size: 12px;
+}
+
+.needs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.chip {
+  background: rgba(229,9,20,.18);
+  border: 1px solid #e50914;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.clock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.clock-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.tab {
+  background: #262626;
+  border: 1px solid #444;
+  font-size: 12px;
+  border-radius: 999px;
+}
+
+.tab.active {
+  background: #e50914;
+}
+
+.prospect {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  background: #111;
+  border: 1px solid #303030;
+  border-left: 5px solid #e50914;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.prospect:hover {
+  background: #1f1f1f;
+}
+
+.rank {
+  font-size: 20px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.player {
+  font-weight: 900;
+}
+
+.pos {
+  background: #2b2b2b;
+  border-radius: 999px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.list {
+  max-height: 620px;
+  overflow-y: auto;
+}
+
+.active-pick {
+  border-color: #e50914;
+  background: rgba(229,9,20,.12);
+}
+
+.summary {
+  background: #0b0b0b;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 12px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modal-card {
+  max-width: 760px;
+  margin: 40px auto;
+  background: #111;
+  border: 2px solid #e50914;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.trade-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pickbox {
+  background: #090909;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.check {
+  display: block;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+@media (max-width: 1050px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .header h1 {
+    font-size: 23px;
+  }
+
+  .prospect {
+    grid-template-columns: 32px 1fr;
+  }
+
+  .pos {
+    grid-column: 2;
+    width: fit-content;
+  }
+
+  .trade-grid {
+    grid-template-columns: 1fr;
+  }
+}
