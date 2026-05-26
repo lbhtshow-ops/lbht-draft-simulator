@@ -6,7 +6,8 @@ let state = {
   prospects: [],
   completed: [],
   tab: "ALL",
-  trades: []
+  trades: [],
+  selectedPlayerIndex: null
 };
 
 function clone(x) {
@@ -98,6 +99,7 @@ function makePick(index, cpu = false) {
   });
 
   state.current++;
+  closeProfile();
 
   if (!cpu) simToUser();
 }
@@ -121,6 +123,48 @@ function visibleProspects() {
     const searchMatch = `${p.name} ${p.school} ${p.pos}`.toLowerCase().includes(q);
     return tabMatch && searchMatch;
   });
+}
+
+function getFit(player, abbr = state.userTeam) {
+  const t = getTeam(abbr);
+  const needs = t.needs || [];
+  const pick = currentPickNumber();
+
+  let valueScore = 0;
+  const valueGap = player.rank - pick;
+
+  if (needs.includes(player.pos)) valueScore += 45;
+  if (valueGap <= -8) valueScore += 35;
+  else if (valueGap <= 4) valueScore += 25;
+  else if (valueGap <= 15) valueScore += 10;
+  else valueScore -= 10;
+
+  if (player.grade >= 92) valueScore += 15;
+  else if (player.grade >= 86) valueScore += 8;
+
+  let label = "Low Fit";
+  let css = "fit-low";
+  let text = `${t.name} could draft ${player.name}, but ${player.pos} is not one of their listed top needs and the value may depend on board context.`;
+
+  if (valueScore >= 70) {
+    label = "Elite Fit";
+    css = "fit-elite";
+    text = `${player.name} is an excellent fit for ${t.name}. He addresses a major team need at ${player.pos} while also giving strong value at this point in the draft.`;
+  } else if (valueScore >= 45) {
+    label = "Good Fit";
+    css = "fit-good";
+    text = `${player.name} is a strong fit for ${t.name}. The position lines up reasonably well with the team's needs and the value is solid.`;
+  }
+
+  return { label, css, text };
+}
+
+function valueTag(player) {
+  const gap = player.rank - currentPickNumber();
+
+  if (gap <= -10) return `<span class="steal">STEAL</span>`;
+  if (gap >= 18) return `<span class="reach">REACH</span>`;
+  return `<span class="small">Fair Value</span>`;
 }
 
 function gradeDraft() {
@@ -165,6 +209,72 @@ Run your own mock at lbhtshow.com`;
 function copyShare() {
   navigator.clipboard.writeText(shareText());
   alert("Mock draft copied!");
+}
+
+function openProfile(index) {
+  state.selectedPlayerIndex = index;
+  renderProfile();
+  document.getElementById("profileModal").style.display = "block";
+}
+
+function closeProfile() {
+  const modal = document.getElementById("profileModal");
+  if (modal) modal.style.display = "none";
+  state.selectedPlayerIndex = null;
+}
+
+function renderProfile() {
+  const p = state.prospects[state.selectedPlayerIndex];
+  if (!p) return;
+
+  const t = getTeam(state.userTeam);
+  const fit = getFit(p);
+  const canPick = currentTeam() === state.userTeam;
+
+  document.getElementById("profileContent").innerHTML = `
+    <div class="profile-top">
+      <div>
+        <div class="profile-name">${p.name}</div>
+        <div class="profile-sub">${p.pos} • ${p.school} • Rank #${p.rank} • ${p.projection}</div>
+        <div class="profile-sub">Player comparison: ${p.comparison}</div>
+      </div>
+      <div class="profile-grade">
+        Grade<br>
+        <span style="font-size:26px;">${p.grade}</span>
+      </div>
+    </div>
+
+    <div class="profile-grid">
+      <div class="profile-box">
+        <h3>Scouting Summary</h3>
+        <p class="small">${p.summary}</p>
+        <p>${valueTag(p)}</p>
+      </div>
+
+      <div class="profile-box">
+        <h3>Draft Fit For ${t.name}</h3>
+        <p class="${fit.css}">${fit.label}</p>
+        <p class="small">${fit.text}</p>
+      </div>
+
+      <div class="profile-box">
+        <h3>Strengths</h3>
+        <ul>${p.strengths.map(x => `<li>${x}</li>`).join("")}</ul>
+      </div>
+
+      <div class="profile-box">
+        <h3>Weaknesses</h3>
+        <ul>${p.weaknesses.map(x => `<li>${x}</li>`).join("")}</ul>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top:14px;">
+      <button onclick="makePick(${state.selectedPlayerIndex}, false)" ${canPick ? "" : "disabled"}>
+        Draft Player
+      </button>
+      <button class="secondary" onclick="closeProfile()">Close</button>
+    </div>
+  `;
 }
 
 function openTrade() {
@@ -339,14 +449,14 @@ function render() {
           ${visibleProspects().slice(0, 80).map(p => {
             const idx = state.prospects.findIndex(x => x.name === p.name);
             const need = user.needs.includes(p.pos);
-            const canPick = currentTeam() === state.userTeam;
+            const fit = getFit(p);
 
             return `
-              <div class="prospect" onclick="${canPick ? `makePick(${idx}, false)` : ""}">
+              <div class="prospect" onclick="openProfile(${idx})">
                 <div class="rank">${p.rank}</div>
                 <div>
                   <div class="player">${p.name} ${need ? `<span class="chip">Need</span>` : ""}</div>
-                  <div class="small">${p.school} • Grade ${p.grade}</div>
+                  <div class="small">${p.school} • Grade ${p.grade} • <span class="${fit.css}">${fit.label}</span></div>
                   <div class="small">${p.summary}</div>
                 </div>
                 <div class="pos">${p.pos}</div>
@@ -359,12 +469,15 @@ function render() {
       <aside class="panel">
         <h2>Your Draft</h2>
         <div class="list">
-          ${state.completed.filter(p => p.team === state.userTeam).map(p => `
-            <div class="result">
-              <strong>Pick ${p.pick}: ${p.player.name}</strong>
-              <div class="small">${p.player.pos}, ${p.player.school} • Rank ${p.player.rank}</div>
-            </div>
-          `).join("") || `<div class="small">No picks yet.</div>`}
+          ${state.completed.filter(p => p.team === state.userTeam).map(p => {
+            const tag = p.player.rank < p.pick - 10 ? `<span class="steal">STEAL</span>` : "";
+            return `
+              <div class="result">
+                <strong>Pick ${p.pick}: ${p.player.name}</strong> ${tag}
+                <div class="small">${p.player.pos}, ${p.player.school} • Rank ${p.player.rank}</div>
+              </div>
+            `;
+          }).join("") || `<div class="small">No picks yet.</div>`}
         </div>
 
         <h2 style="margin-top:16px;">Draft Grade</h2>
@@ -404,6 +517,12 @@ function render() {
           <button onclick="acceptTrade()">Accept Trade</button>
           <button class="secondary" onclick="closeTrade()">Cancel</button>
         </div>
+      </div>
+    </div>
+
+    <div id="profileModal" class="profile-modal">
+      <div class="profile-card">
+        <div id="profileContent"></div>
       </div>
     </div>
   `;
