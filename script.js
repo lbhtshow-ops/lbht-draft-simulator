@@ -9,13 +9,14 @@ let state = {
   trades: [],
   selectedUid: null,
   isSimulating: false,
-  selectedRound: 1
+  selectedRound: 1,
+  started: false
 };
 
 const POSITIONS = ["ALL","QB","RB","WR","TE","OT","IOL","EDGE","DL","LB","CB","S"];
 
 function clone(x){ return JSON.parse(JSON.stringify(x)); }
-function getTeam(abbr){ return TEAMS.find(t => t.abbr === abbr); }
+function getTeam(abbr){ return TEAMS.find(t => t.abbr === abbr) || TEAMS[0]; }
 function currentPickNumber(){ return state.current + 1; }
 function currentRound(){ return Math.floor(state.current / 32) + 1; }
 function currentTeam(){ return state.order[state.current]; }
@@ -27,7 +28,39 @@ function pickValue(pick){
 
 function buildOrder(){
   state.order = [];
-  for(let r = 0; r < state.rounds; r++) state.order.push(...DEFAULT_ORDER);
+  for(let r = 0; r < state.rounds; r++){
+    state.order.push(...DEFAULT_ORDER);
+  }
+}
+
+function makeProspects(){
+  const base = clone(PROSPECTS).map((p, i) => ({ ...p, uid: `real-${i}` }));
+
+  const positions = ["QB","RB","WR","TE","OT","IOL","EDGE","DL","LB","CB","S"];
+
+  let rank = base.length + 1;
+
+  while(base.length < state.rounds * 32 + 40){
+    const pos = positions[rank % positions.length];
+
+    base.push({
+      uid: `auto-${rank}`,
+      name: `Draft Prospect ${rank}`,
+      pos,
+      school: "College Football",
+      rank,
+      grade: Math.max(60, 82 - Math.floor(rank / 15)),
+      projection: rank <= 32 ? "Round 1" : rank <= 96 ? "Day 2" : "Day 3",
+      comparison: "Developmental NFL Prospect",
+      summary: `Depth prospect at ${pos} used to keep the simulator running until your full database is added.`,
+      strengths: ["Developmental upside", "Roster depth", "Scheme flexibility"],
+      weaknesses: ["Needs more scouting detail", "Placeholder profile"]
+    });
+
+    rank++;
+  }
+
+  return base;
 }
 
 function resetDraft(){
@@ -38,7 +71,8 @@ function resetDraft(){
   state.selectedUid = null;
   state.selectedRound = 1;
   state.isSimulating = false;
-  state.prospects = clone(PROSPECTS).map((p, i) => ({ ...p, uid: `p${i}` }));
+  state.started = false;
+  state.prospects = makeProspects();
   buildOrder();
   updateAll();
 }
@@ -48,20 +82,57 @@ function startDraft(){
 
   state.userTeam = document.getElementById("teamSelect")?.value || "BAL";
   state.rounds = Number(document.getElementById("roundSelect")?.value || 3);
-  resetDraft();
+
+  state.current = 0;
+  state.completed = [];
+  state.trades = [];
+  state.tab = "ALL";
+  state.selectedUid = null;
+  state.selectedRound = 1;
+  state.started = true;
+  state.prospects = makeProspects();
+
+  buildOrder();
+  updateAll();
+
+  simToUser();
+}
+
+function draftByIndex(index, cpu = false){
+  if(state.current >= state.order.length) return false;
+  if(!state.prospects[index]) return false;
+
+  const player = state.prospects.splice(index, 1)[0];
+
+  state.completed.push({
+    pick: currentPickNumber(),
+    round: currentRound(),
+    team: currentTeam(),
+    player,
+    cpu
+  });
+
+  state.current++;
+  return true;
 }
 
 function cpuPick(){
-  if(state.current >= state.order.length || !state.prospects.length) return;
+  if(state.current >= state.order.length) return false;
+
+  if(!state.prospects.length){
+    state.prospects = makeProspects();
+  }
 
   const team = getTeam(currentTeam());
-  const needs = team?.needs || [];
+  const needs = team.needs || [];
 
   let idx = state.prospects.findIndex(p => needs.includes(p.pos));
 
-  if(idx === -1 || Math.random() < 0.35) idx = 0;
+  if(idx === -1 || Math.random() < 0.3){
+    idx = 0;
+  }
 
-  draftByIndex(idx, true);
+  return draftByIndex(idx, true);
 }
 
 function simToUser(){
@@ -71,27 +142,37 @@ function simToUser(){
   updateControls();
 
   function step(){
-    if(state.current >= state.order.length || currentTeam() === state.userTeam){
+    if(state.current >= state.order.length){
       state.isSimulating = false;
       updateAll();
       return;
     }
 
+    if(currentTeam() === state.userTeam){
+      state.isSimulating = false;
+      state.selectedRound = currentRound();
+      updateAll();
+      return;
+    }
+
     let batch = 0;
+
     while(
       state.current < state.order.length &&
       currentTeam() !== state.userTeam &&
-      batch < 3
+      batch < 6
     ){
-      cpuPick();
+      const ok = cpuPick();
+      if(!ok) break;
       batch++;
     }
 
     updateClock();
     updateDraftOrder();
     updateResults();
+    updateControls();
 
-    setTimeout(step, 20);
+    setTimeout(step, 10);
   }
 
   step();
@@ -109,14 +190,16 @@ function finishDraft(){
   function step(){
     let batch = 0;
 
-    while(state.current < state.order.length && batch < 8){
-      cpuPick();
+    while(state.current < state.order.length && batch < 12){
+      const ok = cpuPick();
+      if(!ok) break;
       batch++;
     }
 
     updateClock();
     updateDraftOrder();
     updateResults();
+    updateControls();
 
     if(state.current >= state.order.length){
       state.isSimulating = false;
@@ -125,53 +208,58 @@ function finishDraft(){
       return;
     }
 
-    setTimeout(step, 20);
+    setTimeout(step, 10);
   }
 
   step();
 }
 
-function draftByIndex(index, cpu = false){
-  if(state.current >= state.order.length) return;
-  if(!state.prospects[index]) return;
-
-  const player = state.prospects.splice(index, 1)[0];
-
-  state.completed.push({
-    pick: currentPickNumber(),
-    round: currentRound(),
-    team: currentTeam(),
-    player,
-    cpu
-  });
-
-  state.current++;
-}
-
 function draftPlayer(uid){
   if(state.isSimulating) return;
-  if(currentTeam() !== state.userTeam) return;
+
+  if(currentTeam() !== state.userTeam){
+    alert("It is not your pick yet. Click Sim To Pick.");
+    return;
+  }
 
   const index = state.prospects.findIndex(p => p.uid === uid);
-  if(index === -1) return;
+
+  if(index === -1){
+    alert("This player is no longer available.");
+    closeProfile();
+    updateProspects();
+    return;
+  }
 
   draftByIndex(index, false);
   closeProfile();
-  simToUser();
+  updateAll();
+
+  if(state.current < state.order.length){
+    simToUser();
+  }
 }
 
 function autoPick(){
   if(state.isSimulating) return;
-  if(currentTeam() !== state.userTeam) return;
+
+  if(currentTeam() !== state.userTeam){
+    alert("It is not your pick yet. Click Sim To Pick.");
+    return;
+  }
 
   const team = getTeam(state.userTeam);
-  const needs = team?.needs || [];
+  const needs = team.needs || [];
 
   let idx = state.prospects.findIndex(p => needs.includes(p.pos));
   if(idx === -1) idx = 0;
 
   draftByIndex(idx, false);
-  simToUser();
+  updateAll();
+
+  if(state.current < state.order.length){
+    simToUser();
+  }
 }
 
 function setTab(tab){
@@ -197,7 +285,7 @@ function visibleProspects(){
 
 function getFit(player, abbr = state.userTeam){
   const team = getTeam(abbr);
-  const needs = team?.needs || [];
+  const needs = team.needs || [];
   const pick = currentPickNumber();
 
   let score = 0;
@@ -224,7 +312,7 @@ function getFit(player, abbr = state.userTeam){
     return {
       label:"Good Fit",
       css:"fit-good",
-      text:`${player.name} is a strong fit for ${team.name}. The position lines up well enough with the team's needs and the value is solid.`
+      text:`${player.name} is a strong fit for ${team.name}. The position lines up with the team's needs and the value is solid.`
     };
   }
 
@@ -239,7 +327,7 @@ function gradeDraft(){
   const picks = state.completed.filter(p => p.team === state.userTeam);
   if(!picks.length) return "N/A";
 
-  const needs = getTeam(state.userTeam)?.needs || [];
+  const needs = getTeam(state.userTeam).needs || [];
   let score = 0;
 
   picks.forEach(p => {
@@ -282,13 +370,14 @@ function copyShare(){
 function openProfile(uid){
   if(state.isSimulating) return;
 
-  state.selectedUid = uid;
   const player = state.prospects.find(p => p.uid === uid);
   if(!player) return;
 
+  state.selectedUid = uid;
+
   const team = getTeam(state.userTeam);
   const fit = getFit(player);
-  const canPick = currentTeam() === state.userTeam;
+  const canPick = currentTeam() === state.userTeam && !state.isSimulating;
 
   const box = document.getElementById("profileContent");
   if(!box) return;
@@ -329,7 +418,9 @@ function openProfile(uid){
     </div>
 
     <div class="btn-row" style="margin-top:14px;">
-      <button onclick="draftPlayer('${player.uid}')" ${canPick ? "" : "disabled"}>Draft Player</button>
+      <button onclick="draftPlayer('${player.uid}')" ${canPick ? "" : "disabled"}>
+        Draft Player
+      </button>
       <button class="secondary" onclick="closeProfile()">Close</button>
     </div>
   `;
@@ -595,27 +686,24 @@ function renderApp(){
   document.getElementById("teamSelect").innerHTML = TEAMS
     .map(t => `<option value="${t.abbr}" ${t.abbr === state.userTeam ? "selected" : ""}>${t.name}</option>`)
     .join("");
-
-  document.getElementById("roundView").innerHTML = Array.from({length: state.rounds}, (_, i) => `
-    <option value="${i + 1}">Round ${i + 1}</option>
-  `).join("");
 }
 
 function updateControls(){
-  document.getElementById("statusPill").textContent = state.isSimulating ? "Simulating..." : "● LBHT Draft War Room";
+  const pill = document.getElementById("statusPill");
+  if(pill) pill.textContent = state.isSimulating ? "Simulating..." : "● LBHT Draft War Room";
 
   ["teamSelect","roundSelect","startBtn","simBtn","finishBtn","tradeBtn"].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.disabled = state.isSimulating;
   });
 
-  const finished = state.current >= state.order.length;
   const reset = document.getElementById("resetBtn");
   if(reset) reset.disabled = state.isSimulating;
 }
 
 function updateTeamCard(){
   const team = getTeam(state.userTeam);
+
   document.getElementById("teamCard").innerHTML = `
     <div class="team-card">
       <img class="logo" src="${team.logo}" loading="lazy" />
@@ -689,9 +777,17 @@ function updateProspects(){
   }).join("");
 }
 
+function updateRoundDropdown(){
+  const roundView = document.getElementById("roundView");
+  if(!roundView) return;
+
+  roundView.innerHTML = Array.from({ length: state.rounds }, (_, i) => `
+    <option value="${i + 1}" ${state.selectedRound === i + 1 ? "selected" : ""}>Round ${i + 1}</option>
+  `).join("");
+}
+
 function updateDraftOrder(){
-  const select = document.getElementById("roundView");
-  if(select) select.value = state.selectedRound;
+  updateRoundDropdown();
 
   const start = (state.selectedRound - 1) * 32;
   const end = start + 32;
@@ -753,7 +849,7 @@ document.addEventListener("keydown", function(e){
 
 function init(){
   buildOrder();
-  state.prospects = clone(PROSPECTS).map((p, i) => ({ ...p, uid: `p${i}` }));
+  state.prospects = makeProspects();
   renderApp();
   updateAll();
 }
